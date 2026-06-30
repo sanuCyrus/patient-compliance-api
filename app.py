@@ -73,8 +73,8 @@ def build_response(patient: dict) -> dict:
         "patient_id": patient["id"],
         "patient_name": f"{patient['first_name']} {patient['last_name']}",
         "compliance_status": patient["compliance_status"],
-        "days_left_for_compliance": patient["days_left_for_compliance"],
-        "days_needed_for_compliance": patient["days_needed_for_compliance"],
+        "days_left": patient["days_left_for_compliance"],
+        "days_needed": patient["days_needed_for_compliance"],
     }
 
 
