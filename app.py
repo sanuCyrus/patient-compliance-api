@@ -64,6 +64,16 @@ PATIENTS = [
         "days_left_for_compliance": 30,
         "days_needed_for_compliance": 10,
     },
+    {
+        "id": "P006",
+        "first_name": "Cyrus",
+        "last_name": "Mirzaie",
+        "dob": "2004-03-15",
+        "phone": "6157526249",
+        "compliance_status": "In Progress",
+        "days_left_for_compliance": 12,
+        "days_needed_for_compliance": 8,
+    },
 ]
 
 
