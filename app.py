@@ -1,3 +1,6 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -77,6 +80,30 @@ PATIENTS = [
 ]
 
 
+# ── Agent availability config ───────────────────────────────────────────────────
+BUSINESS_TIMEZONE = "America/Chicago"  # Central Time (handles CST/CDT automatically)
+BUSINESS_DAYS = range(0, 5)            # Monday(0) - Friday(4)
+BUSINESS_START_HOUR = 9                # 9:00 AM
+BUSINESS_END_HOUR = 17                 # 5:00 PM
+
+
+def is_within_business_hours(now: datetime) -> bool:
+    return now.weekday() in BUSINESS_DAYS and BUSINESS_START_HOUR <= now.hour < BUSINESS_END_HOUR
+
+
+def check_sanusom_agent_availability() -> Optional[bool]:
+    """
+    Placeholder for a future integration that asks Sanusom staff directly
+    (e.g. an on-call/staffing system) whether a live agent is available.
+
+    Returns None until that integration exists, meaning "no signal" —
+    the business-hours check below is used as the sole source of truth
+    for now. Once implemented, this should return True/False and be
+    combined with the business-hours check in agent_availability().
+    """
+    return None
+
+
 def build_response(patient: dict) -> dict:
     return {
         "found": True,
@@ -131,3 +158,29 @@ def lookup_by_name_dob(req: NameDobLookupRequest):
         ):
             return build_response(p)
     return {"found": False, "message": "No patient found with that name and date of birth."}
+
+
+@app.get("/availability/agent")
+def agent_availability():
+    """
+    Lets AurionX check whether an agent is available before/during a call flow.
+
+    Currently checks business hours only (Mon-Fri, 9:00 AM-5:00 PM Central).
+    Future: will also check live Sanusom staff availability and combine
+    that signal with the business-hours check below.
+    """
+    now = datetime.now(ZoneInfo(BUSINESS_TIMEZONE))
+    within_hours = is_within_business_hours(now)
+
+    # Not yet wired up — see check_sanusom_agent_availability() docstring.
+    _sanusom_available = check_sanusom_agent_availability()  # noqa: F841 (reserved for future use)
+
+    available = within_hours
+
+    return {
+        "available": available,
+        "reason": "Within business hours" if within_hours else "Outside business hours",
+        "checked_at": now.isoformat(),
+        "timezone": BUSINESS_TIMEZONE,
+        "business_hours": "Mon-Fri, 9:00 AM-5:00 PM CT",
+    }
