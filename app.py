@@ -75,16 +75,17 @@ PATIENTS = [
         "compliance_status": "In Progress",
         "days_left_for_compliance": 12,
         "days_needed_for_compliance": 8,
-    },{
+    },
+    {
         "id": "P007",
         "first_name": "Lynda",
         "last_name": "Bolan",
         "dob": "2000-01-01",
         "phone": "6154787186",
         "compliance_status": "In Progress",
-        "days_left_for_compliance": 12,
-        "days_needed_for_compliance": 8,
-    },
+        "days_left_for_compliance": 20,
+        "days_needed_for_compliance": 10,
+    }
 ]
 
 
