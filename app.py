@@ -1,6 +1,3 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -22,7 +19,7 @@ PATIENTS = [
         "first_name": "Maria",
         "last_name": "Gonzalez",
         "dob": "1965-03-12",
-        "phone": "5551234567",
+        "phone": "+15551234567",
         "compliance_status": "Compliant",
         "days_left_for_compliance": 90,
         "days_needed_for_compliance": 0,
@@ -32,7 +29,7 @@ PATIENTS = [
         "first_name": "James",
         "last_name": "Thompson",
         "dob": "1978-07-22",
-        "phone": "5559876543",
+        "phone": "+15559876543",
         "compliance_status": "Non-Compliant",
         "days_left_for_compliance": 14,
         "days_needed_for_compliance": 30,
@@ -42,7 +39,7 @@ PATIENTS = [
         "first_name": "Linda",
         "last_name": "Patel",
         "dob": "1990-11-05",
-        "phone": "5554445678",
+        "phone": "+15554445678",
         "compliance_status": "In Progress",
         "days_left_for_compliance": 45,
         "days_needed_for_compliance": 15,
@@ -52,7 +49,7 @@ PATIENTS = [
         "first_name": "Robert",
         "last_name": "Kim",
         "dob": "1955-01-30",
-        "phone": "5552223333",
+        "phone": "+15552223333",
         "compliance_status": "Non-Compliant",
         "days_left_for_compliance": 5,
         "days_needed_for_compliance": 60,
@@ -62,7 +59,7 @@ PATIENTS = [
         "first_name": "Susan",
         "last_name": "Carter",
         "dob": "1982-09-18",
-        "phone": "5556667777",
+        "phone": "+15556667777",
         "compliance_status": "In Progress",
         "days_left_for_compliance": 30,
         "days_needed_for_compliance": 10,
@@ -72,36 +69,12 @@ PATIENTS = [
         "first_name": "Cyrus",
         "last_name": "Mirzaie",
         "dob": "2004-03-15",
-        "phone": "6157526249",
+        "phone": "+16157526249",
         "compliance_status": "In Progress",
         "days_left_for_compliance": 12,
         "days_needed_for_compliance": 8,
     },
 ]
-
-
-# ── Agent availability config ───────────────────────────────────────────────────
-BUSINESS_TIMEZONE = "America/Chicago"  # Central Time (handles CST/CDT automatically)
-BUSINESS_DAYS = range(0, 5)            # Monday(0) - Friday(4)
-BUSINESS_START_HOUR = 9                # 9:00 AM
-BUSINESS_END_HOUR = 17                 # 5:00 PM
-
-
-def is_within_business_hours(now: datetime) -> bool:
-    return now.weekday() in BUSINESS_DAYS and BUSINESS_START_HOUR <= now.hour < BUSINESS_END_HOUR
-
-
-def check_sanusom_agent_availability() -> Optional[bool]:
-    """
-    Placeholder for a future integration that asks Sanusom staff directly
-    (e.g. an on-call/staffing system) whether a live agent is available.
-
-    Returns None until that integration exists, meaning "no signal" —
-    the business-hours check below is used as the sole source of truth
-    for now. Once implemented, this should return True/False and be
-    combined with the business-hours check in agent_availability().
-    """
-    return None
 
 
 def build_response(patient: dict) -> dict:
@@ -158,29 +131,3 @@ def lookup_by_name_dob(req: NameDobLookupRequest):
         ):
             return build_response(p)
     return {"found": False, "message": "No patient found with that name and date of birth."}
-
-
-@app.get("/availability/agent")
-def agent_availability():
-    """
-    Lets AurionX check whether an agent is available before/during a call flow.
-
-    Currently checks business hours only (Mon-Fri, 9:00 AM-5:00 PM Central).
-    Future: will also check live Sanusom staff availability and combine
-    that signal with the business-hours check below.
-    """
-    now = datetime.now(ZoneInfo(BUSINESS_TIMEZONE))
-    within_hours = is_within_business_hours(now)
-
-    # Not yet wired up — see check_sanusom_agent_availability() docstring.
-    _sanusom_available = check_sanusom_agent_availability()  # noqa: F841 (reserved for future use)
-
-    available = within_hours
-
-    return {
-        "available": available,
-        "reason": "Within business hours" if within_hours else "Outside business hours",
-        "checked_at": now.isoformat(),
-        "timezone": BUSINESS_TIMEZONE,
-        "business_hours": "Mon-Fri, 9:00 AM-5:00 PM CT",
-    }
