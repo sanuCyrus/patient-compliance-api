@@ -1,9 +1,8 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Response, status
+from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI(title="Patient Compliance API")
@@ -115,14 +114,27 @@ def build_response(patient: dict) -> dict:
     }
 
 
-# ── Request models ─────────────────────────────────────────────────────────────
-class PhoneLookupRequest(BaseModel):
-    phone: str  # digits only or formatted, e.g. "5551234567" or "555-123-4567"
+# ── Request parsing ────────────────────────────────────────────────────────────
+async def read_call_args(request: Request) -> dict:
+    """
+    Reads the JSON body and returns just the actual parameters, regardless
+    of whether the caller posts them flat (e.g. {"phone": "..."}) or
+    wrapped in Retell's Custom Function envelope
+    (e.g. {"call": {...}, "name": "...", "args": {"phone": "..."}}).
 
-class NameDobLookupRequest(BaseModel):
-    first_name: str
-    last_name: str
-    dob: str  # YYYY-MM-DD
+    Retell's Custom Function tool wraps parameters under "args" by
+    default (per docs.retellai.com/build/custom-function); this lets one
+    endpoint handle both that format and a plain flat body (e.g. from
+    Postman or another integration) without needing every caller to
+    match the same shape.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return {}
+    if isinstance(payload, dict) and isinstance(payload.get("args"), dict):
+        return payload["args"]
+    return payload if isinstance(payload, dict) else {}
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -144,13 +156,19 @@ def normalize_phone(phone: str) -> str:
 
 
 @app.post("/lookup/phone")
-def lookup_by_phone(req: PhoneLookupRequest):
+async def lookup_by_phone(request: Request):
     """
     Look up a patient by phone number.
     Matches on the last 10 digits, so a leading country code
     (e.g. "+1") on either side doesn't break the lookup.
+    Accepts either a flat body ({"phone": "..."}) or Retell's
+    Custom Function envelope ({"args": {"phone": "..."}, ...}).
     """
-    digits = normalize_phone(req.phone)
+    args = await read_call_args(request)
+    phone = str(args.get("phone", "")).strip()
+    if not phone or phone == "{{user_number}}":
+        return {"found": False, "message": "No phone number provided."}
+    digits = normalize_phone(phone)
     for p in PATIENTS:
         if normalize_phone(p["phone"]) == digits:
             return build_response(p)
@@ -158,16 +176,23 @@ def lookup_by_phone(req: PhoneLookupRequest):
 
 
 @app.post("/lookup/name-dob")
-def lookup_by_name_dob(req: NameDobLookupRequest):
+async def lookup_by_name_dob(request: Request):
     """
     Look up a patient by first name, last name, and date of birth.
     Case-insensitive name matching.
+    Accepts either a flat body or Retell's Custom Function envelope.
     """
+    args = await read_call_args(request)
+    first_name = str(args.get("first_name", "")).strip()
+    last_name = str(args.get("last_name", "")).strip()
+    dob = str(args.get("dob", "")).strip()
+    if not (first_name and last_name and dob):
+        return {"found": False, "message": "Missing first_name, last_name, or dob."}
     for p in PATIENTS:
         if (
-            p["first_name"].lower() == req.first_name.strip().lower()
-            and p["last_name"].lower() == req.last_name.strip().lower()
-            and p["dob"] == req.dob
+            p["first_name"].lower() == first_name.lower()
+            and p["last_name"].lower() == last_name.lower()
+            and p["dob"] == dob
         ):
             return build_response(p)
     return {"found": False, "message": "No patient found with that name and date of birth."}
